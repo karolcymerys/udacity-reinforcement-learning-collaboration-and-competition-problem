@@ -9,6 +9,7 @@ DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 def maddpg(env: TennisEnvironment) -> None:
     algorithm = MADDPG(env, device=DEVICE)
     algorithm.train()
+    algorithm.save_weights()
 
 
 if __name__ == '__main__':

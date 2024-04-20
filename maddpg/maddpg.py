@@ -1,5 +1,4 @@
-from copy import copy
-from typing import Tuple, Union
+from typing import Tuple
 
 import numpy as np
 import torch
@@ -15,7 +14,7 @@ from maddpg.utils import OUNoise
 class MADDPG:
     def __init__(self,
                  env: TennisEnvironment,
-                 gamma: float = 0.95,
+                 gamma: float = 0.99,
                  buffer_size: int = 100_000,
                  hidden_size: int = 128,
                  action_boundaries: Tuple[float, float] = (-1, 1),
@@ -29,7 +28,7 @@ class MADDPG:
                 self.observation_size,
                 hidden_size,
                 self.action_size,
-                self.action_size * self.agent_size,
+                self.agent_size,
                 action_boundaries,
                 gamma,
                 device=device
@@ -40,17 +39,21 @@ class MADDPG:
         self.device = device
 
     def train(self,
-              max_episodes: int = 100_000,
-              max_t: int = 100_000,
-              minibatch_size: int = 1024) -> None:
-        noise_sampler = OUNoise((1, self.action_size), device=self.device)
-
+              max_episodes: int = 5_000,
+              max_t: int = 5_000,
+              minibatch_size: int = 256,
+              optimize_every_timestamps: int = 1,
+              optimization_loops: int = 2) -> None:
         scores = []
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
         plt.ylabel('Score')
         plt.xlabel('Episode #')
+
+        noise_sampler = OUNoise((1, self.action_size), device=self.device, noise_factor_decay=0.999)
+        for agent in self.agents:
+            agent.hard_update()
 
         with (tqdm(range(1, max_episodes + 1)) as episodes):
             for episode_i in episodes:
@@ -68,8 +71,10 @@ class MADDPG:
                     self.replay_buffer.add(observations, actions, rewards, target_observations, dones)
                     total_rewards += rewards.detach().cpu().data.numpy()
 
-                    if len(self.replay_buffer) >= minibatch_size:
-                        self.__train_agents(minibatch_size)
+                    if len(self.replay_buffer) >= minibatch_size and t % optimize_every_timestamps == 0:
+                        for _ in range(optimization_loops):
+                            self.__train_agents(minibatch_size)
+                        self.__soft_update()
 
                     if torch.any(dones == 1):
                         break
@@ -77,54 +82,54 @@ class MADDPG:
                     observations = target_observations
 
                 scores.append(total_rewards)
+                np_scores = np.array(scores)
                 episodes.set_postfix({
-                    'Current Avg reward': scores[-1],
-                    'Avg reward': np.mean(scores[-100:], axis=0),
+                    'Current reward': np_scores[-1, :],
+                    'Avg reward over 100 last episodes': np.mean(np_scores[-100:, :], axis=0),
+                    'Max of Avg reward over 100 last episodes': np.max(np.mean(np_scores[-100:, :], axis=0))
                 })
 
-                if np.max(np.mean(scores[-100:], axis=1)) >= 0.5:
+                plt.plot(np.arange(len(scores)), np.max(np_scores[:, :], axis=1))
+                plt.pause(1e-5)
+
+                if np.max(np.mean(np_scores[-100:, :], axis=0)) >= 0.5:
                     print(f'Goal reached at {episode_i}th episode.')
                     break
 
                 noise_sampler.step()
-                np_scores = np.array(scores)
-                for agent_id in range(self.agent_size):
-                    plt.plot(np.arange(len(scores)), np_scores[:, agent_id], label=f'Agent {agent_id}')
-                plt.pause(1e-5)
 
     def __train_agents(self, minibatch_size: int) -> None:
+        for agent_idx, agent in enumerate(self.agents):
+            observations, actions, rewards, target_observations, dones = self.replay_buffer.sample(minibatch_size)
+            batch_size = observations.shape[0]
 
-        def swap_rows(_actions_src: Union[torch.FloatTensor, torch.cuda.FloatTensor],
-                      agent_id: int) -> Union[torch.FloatTensor, torch.cuda.FloatTensor]:
-            # Critic networks assume that on first row there is action for its own agent
-            _actions_target = copy(_actions_src)
-            _actions_target[:, 0, :] = _actions_src[:, agent_id, :]
-            actions_agent_idx = 0
-            for idx in range(1, _actions_target.shape[1]):
-                if actions_agent_idx == agent_id:
-                    actions_agent_idx += 1
+            other_agents_actions = torch.stack([actions[:, local_agent_id, :]
+                                                for local_agent_id in range(self.agent_size) if
+                                                local_agent_id != agent_idx], dim=1)
 
-                _actions_target[:, idx, :] = _actions_src[:, actions_agent_idx, :]
-                actions_agent_idx += 1
-            return _actions_target
+            other_agents_target_actions = torch.stack(
+                [self.agents[local_agent_id].act_target(target_observations[:, local_agent_id, :])
+                 for local_agent_id in range(self.agent_size) if local_agent_id != agent_idx], dim=1)
 
-        for _ in range(10):
-            for agent_idx, agent in enumerate(self.agents):
-                observations, actions, rewards, target_observations, dones = self.replay_buffer.sample(minibatch_size)
+            agent.train(
+                observations.view(batch_size, -1),
+                observations[:, agent_idx, :],
+                actions[:, agent_idx, :],
+                other_agents_actions,
+                rewards[:, agent_idx],
+                target_observations.view(batch_size, -1),
+                target_observations[:, agent_idx, :],
+                other_agents_target_actions,
+                dones[:, agent_idx]
+            )
 
-                target_actions = torch.stack(
-                    [self.agents[local_agent_id].act_target(target_observations[:, local_agent_id, :])
-                     for local_agent_id in range(self.agent_size)], dim=1)
+    def __soft_update(self):
+        for agent in self.agents:
+            agent.soft_update()
 
-                agent.train(
-                    observations[:, agent_idx, :],
-                    swap_rows(actions, agent_idx),
-                    rewards[:, agent_idx].view(minibatch_size, 1),
-                    target_observations[:, agent_idx, :],
-                    swap_rows(target_actions, agent_idx),
-                    dones[:, agent_idx].view(minibatch_size, 1)
-                )
-
+    def save_weights(self):
+        for agent_idx, agent in enumerate(self.agents):
+            agent.save_weights('maddpg', agent_idx)
 
     def test(self):
         pass
