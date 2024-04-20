@@ -6,10 +6,10 @@ from unityagents import UnityEnvironment, BrainInfo
 
 class ActionResult:
     def __init__(self,
-                 states: Union[torch.FloatTensor, torch.cuda.FloatTensor],
+                 observations: Union[torch.FloatTensor, torch.cuda.FloatTensor],
                  rewards: Union[torch.FloatTensor, torch.cuda.FloatTensor],
                  dones: Union[torch.IntTensor, torch.cuda.IntTensor]) -> None:
-        self.states = states
+        self.observations = observations
         self.rewards = rewards
         self.dones = dones
 
@@ -39,7 +39,7 @@ class TennisEnvironment:
     def action_size(self) -> int:
         return self.unity_env.brains[self.brain_name].vector_action_space_size
 
-    def state_size(self) -> int:
+    def observation_size(self) -> int:
         brain_details = self.unity_env.brains[self.brain_name]
         return brain_details.vector_observation_space_size * brain_details.num_stacked_vector_observations
 
