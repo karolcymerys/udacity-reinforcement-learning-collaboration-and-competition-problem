@@ -101,3 +101,7 @@ class DDPGAgent:
     def save_weights(self, prefix: str, agent_id: int) -> None:
         torch.save(self.actor.state_dict(), f'{prefix}_actor_{agent_id}.pth')
         torch.save(self.critic.state_dict(), f'{prefix}_critic_{agent_id}.pth')
+
+    def load_weights(self, prefix: str, agent_id: int) -> None:
+        self.actor.load_state_dict(torch.load(f'{prefix}_actor_{agent_id}.pth'))
+        self.critic.load_state_dict(torch.load(f'{prefix}_critic_{agent_id}.pth'))

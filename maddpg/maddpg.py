@@ -131,5 +131,20 @@ class MADDPG:
         for agent_idx, agent in enumerate(self.agents):
             agent.save_weights('maddpg', agent_idx)
 
+    def load_weights(self):
+        for agent_idx, agent in enumerate(self.agents):
+            agent.load_weights('maddpg', agent_idx)
+
     def test(self):
-        pass
+        while True:
+            results = self.env.reset()
+            timestamp = 0
+            scores = np.zeros(self.agent_size)
+            while not torch.any(results.dones):
+                actions = torch.cat([agent.act(results.observations[agent_idx, :].view(1, -1))
+                                     for agent_idx, agent in enumerate(self.agents)])
+                results = self.env.step(actions)
+                scores += results.rewards.detach().cpu().data.numpy()
+                timestamp += 1
+                print(f'\rTimestamp: {timestamp} Scores: {scores}', end='')
+            print('\n')
