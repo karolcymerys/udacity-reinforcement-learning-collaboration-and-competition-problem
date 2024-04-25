@@ -1,6 +1,6 @@
 # Udacity Project: Collaboration and competition
 
-__TODO: Put here animation__
+![Demo animation](./docs/animation.gif)
 
 ## Description
 
@@ -9,7 +9,7 @@ The goal of this project is to resolve __multi-agent collaborative__ environment
 ### Environment
 
 This environment is called _Tennis_ environment. 
-It consists of 2 rackets (__agents__), whose goal is to keep ball in play as long as possible.
+It consists of 2 rackets (__agents__). Their goal is to keep ball in play as long as possible.
 Environment is considered as resolved in training process when one of the agents gets 
 __an average score of +0.5 over 100 consecutive episodes__.
 
@@ -18,37 +18,44 @@ __an average score of +0.5 over 100 consecutive episodes__.
 
 The observation space of environment is built from 24-dimensional vector 
 that represents the position and velocity of the ball and the rocket. 
-Each agent receives its own local observation
+Each agent receives its own local observation.
 
 ### Actions
 
 An agent is responsible for deciding what action should be taken to get the best score based on provided observation. 
-Agent action space consist of 2-dimensional vector with continuous values between -1 and 1. 
+Agent's action space consists of 2-dimensional vector with continuous values between `-1` and `1`. 
 They correspond to agent's movement toward (or away from) the net, and jumping.
 
 
 ### Reward
 
-- a reward of +0.1 is provided for agent when it hits the ball over the net  
-- a reward of -0.01 is provided for agent when it lets the ball hit the ground or hits the ball out of bounds
+- a reward of `+0.1` is provided for agent when it hits the ball over the net  
+- a reward of `-0.01` is provided for agent when it lets the ball hit the ground or hits the ball out of bounds
 
 ## Algorithm Description
 
 All details related to algorithm utilized to resolve this problem can be found in [Report.md file](./Report.md).
 
-## Structure description __TODO__
+## Structure description
 
 The project contains following files:
 
-| Filename                       | Description                                                                    |
-|--------------------------------|--------------------------------------------------------------------------------|
-| `doc`                          | folder that contains docs related files                                        |
-| `environment.py`               | wrapper class for _UnityEnvironment_ to simplify interactions with environment |
-| `Report.md`                    | doc file that contains utilized algorithm's details                            |  
-| `requirements.txt`             | file that contains all required Python dependencies                            |  
-| `README.md`                    | doc file that contains project's description                                   | 
-| `test.py`                      | Python script that allows to start trained agent                               |
-| `train.py`                     | main Python script for training                                                |
+| Filename               | Description                                                                    |
+|------------------------|--------------------------------------------------------------------------------|
+| `doc`                  | folder that contains docs related files                                        |
+| `environment.py`       | wrapper class for _UnityEnvironment_ to simplify interactions with environment |
+| `maddpg/buffer.py`     | implementation of replay buffer                                                |
+| `maddpg/ddpg_agent.py` | implementation of single DDPG agent                                            |
+| `maddpg/maddpg.py`     | implementation of MADDPG algorithm                                             |
+| `maddpg/model.py`      | implementation of actor and critic networks                                    |
+| `maddpg/utils.py`      | utils for MADDPG algorithm                                                     |
+| `Report.md`            | doc file that contains utilized algorithm's details                            |  
+| `requirements.txt`     | file that contains all required Python dependencies                            |  
+| `README.md`            | doc file that contains project's description                                   | 
+| `test.py`              | Python script that allows to start trained agent                               |
+| `train.py`             | main Python script for training                                                |
+| `maddpg_actor_x.py`    | weights of x-th actor network                                                  |
+| `maddpg_critic_x.py`   | weights of x-th critic network                                                 |
 
 ## Try it yourself
 
@@ -98,9 +105,9 @@ Feel free to train your own agents. In order to do that:
 
 1. In `train.py` file adjust hyperparameters
 2. Run `python train.py` to start training process
-3. Once training is completed, then your network is saved in `ddpg_actor_model_weights.py` file __TODO__
+3. Once training is completed, then your network is saved in `maddpg_actor_x.py` files
 
 ### Testing
 
 1. In order to run trained agent, run following command `python test.py`
-   (it utilizes model weights from `ddpg_actor_model_weights.py` file)  __TODO__
+   (it utilizes model weights from `maddpg_actor_x.py` files)

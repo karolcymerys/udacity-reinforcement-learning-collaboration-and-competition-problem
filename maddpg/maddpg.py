@@ -39,8 +39,8 @@ class MADDPG:
         self.device = device
 
     def train(self,
-              max_episodes: int = 5_000,
-              max_t: int = 5_000,
+              max_episodes: int = 2_000,
+              max_t: int = 10_000,
               minibatch_size: int = 256,
               optimize_every_timestamps: int = 1,
               optimization_loops: int = 2) -> None:
